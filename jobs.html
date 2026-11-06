@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jobs Review - True or False</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            background: radial-gradient(circle at center, #fff9c4 0%, #ffcc80 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            color: #333;
+        }
+        
+        #header {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 800px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #d84315;
+            margin-bottom: 2rem;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+        
+        #timer.warning { color: #d32f2f; animation: pulse 0.5s infinite alternate; }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+        
+        #game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        #card {
+            background-color: white;
+            padding: 3rem;
+            border-radius: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 4rem;
+            width: 85%;
+            max-width: 550px;
+            position: relative;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #card::before {
+            content: '';
+            position: absolute;
+            top: 20px; left: 20px; right: 20px; bottom: 20px;
+            border: 5px dashed #ffcc80;
+            border-radius: 25px;
+            pointer-events: none;
+        }
+
+        .card-enter { animation: slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes slideDown {
+            0% { transform: translateY(-100vh) rotate(-15deg) scale(0.8); }
+            100% { transform: translateY(0) rotate(0) scale(1); }
+        }
+        
+        .card-leave-right { animation: flyRight 0.5s forwards; }
+        @keyframes flyRight {
+            to { transform: translateX(100vw) rotate(30deg) scale(0.8); opacity: 0; }
+        }
+        
+        .card-leave-left { animation: flyLeft 0.5s forwards; }
+        @keyframes flyLeft {
+            to { transform: translateX(-100vw) rotate(-30deg) scale(0.8); opacity: 0; }
+        }
+
+        #card-emoji {
+            font-size: 9rem;
+            margin-bottom: 1.5rem;
+            z-index: 1;
+            filter: drop-shadow(0 15px 15px rgba(0,0,0,0.2));
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        #card-sentence {
+            font-size: 4.5rem;
+            font-weight: bold;
+            text-align: center;
+            z-index: 1;
+            background: #fff3e0;
+            padding: 10px 30px;
+            border-radius: 20px;
+            color: #424242;
+        }
+
+        /* --- 全新立體糖果按鈕設計 --- */
+        #options {
+            display: flex;
+            gap: 6rem;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .tf-btn {
+            font-family: 'Arial Rounded MT Bold', 'Comic Sans MS', sans-serif;
+            font-size: 7rem;
+            font-weight: 900;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 8px solid white;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.15s ease;
+            position: relative;
+            outline: none;
+            /* 加入微光反射效果 */
+            overflow: hidden;
+        }
+
+        .tf-btn::after {
+            content: '';
+            position: absolute;
+            top: 5%;
+            left: 10%;
+            width: 80%;
+            height: 40%;
+            background: linear-gradient(rgba(255,255,255,0.6), rgba(255,255,255,0));
+            border-radius: 50px 50px 0 0;
+            pointer-events: none;
+        }
+
+        .btn-true { 
+            background: linear-gradient(135deg, #66bb6a, #43a047); 
+            color: white; 
+            box-shadow: 0 15px 0 #2e7d32, 0 25px 20px rgba(0,0,0,0.3); 
+            text-shadow: 2px 3px 0 #1b5e20;
+        }
+
+        .btn-false { 
+            background: linear-gradient(135deg, #ef5350, #e53935); 
+            color: white; 
+            box-shadow: 0 15px 0 #c62828, 0 25px 20px rgba(0,0,0,0.3); 
+            text-shadow: 2px 3px 0 #b71c1c;
+        }
+
+        .tf-btn:active {
+            transform: translateY(15px) !important;
+            box-shadow: 0 0 0 transparent, 0 10px 15px rgba(0,0,0,0.2) !important;
+        }
+
+        .shake { animation: shakeAnim 0.4s; }
+        @keyframes shakeAnim {
+            0%, 100% { transform: translateX(0) rotate(0); }
+            25% { transform: translateX(-15px) rotate(-5deg); }
+            50% { transform: translateX(15px) rotate(5deg); }
+            75% { transform: translateX(-15px) rotate(-5deg); }
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 248, 225, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .overlay h1 { font-size: 6rem; color: #ff9800; margin: 0 0 1rem 0; text-shadow: 3px 3px 0 #ffe082; }
+        .overlay p { font-size: 3rem; color: #5d4037; margin-bottom: 3rem; text-align: center; line-height: 1.5; }
+        
+        .btn-group { display: flex; gap: 1.5rem; }
+        .action-btn {
+            font-size: 2.5rem;
+            padding: 1.5rem 3.5rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            border: none;
+            color: white;
+            box-shadow: 0 10px 0 rgba(0,0,0,0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .start-btn { background-color: #00bcd4; box-shadow: 0 10px 0 #0097a7; }
+        .home-btn { background-color: #ffca28; box-shadow: 0 10px 0 #ff8f00; color: #333; }
+        .action-btn:active { transform: translateY(10px); box-shadow: 0 0 0; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="header" class="hidden">
+        <div>Score: <span id="score">0</span></div>
+        <div id="timer">Time: 30</div>
+    </div>
+
+    <div id="game-area" class="hidden">
+        <div id="card">
+            <div id="card-emoji"></div>
+            <div id="card-sentence"></div>
+        </div>
+        <div id="options">
+            <!-- 改為純文字 O 與 X 搭配立體按鈕樣式 -->
+            <button class="tf-btn btn-true" onclick="checkAnswer(true)">O</button>
+            <button class="tf-btn btn-false" onclick="checkAnswer(false)">X</button>
+        </div>
+    </div>
+
+    <div id="start-screen" class="overlay">
+        <h1>Jobs (W12~13)</h1>
+        <!-- 修正引導語句，更貼近低年級課堂指令 -->
+        <p>圖片和句子配對嗎？<br>對的按 O，錯的按 X</p>
+        <div class="btn-group">
+            <a href="index.html" class="action-btn home-btn">🏠 Back</a>
+            <button class="action-btn start-btn" onclick="startGame()">▶️ Start</button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="overlay hidden">
+        <h1>Time's Up!</h1>
+        <p>Your Score: <span id="final-score">0</span></p>
+        <div class="btn-group">
+            <a href="index.html" class="action-btn home-btn">🏠 Home</a>
+            <button class="action-btn start-btn" onclick="startGame()">🔄 Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const vocabList = [
+            { word: "doctor", pronoun: "He", emoji: "👨‍⚕️ 🏥", color: "#1976D2" }, 
+            { word: "driver", pronoun: "He", emoji: "🚕 👨‍✈️", color: "#1976D2" }, 
+            { word: "police", pronoun: "He", emoji: "👮‍♂️ 🚓", color: "#1976D2" }, 
+            { word: "nurse", pronoun: "She", emoji: "👩‍⚕️ 🩹", color: "#E91E63" }, 
+            { word: "teacher", pronoun: "She", emoji: "👩‍🏫 📖", color: "#E91E63" }, 
+            { word: "cook", pronoun: "She", emoji: "👩‍🍳 🍳", color: "#E91E63" }  
+        ];
+
+        let score = 0;
+        let timeLeft = 30;
+        let timerInterval;
+        let currentVocab;
+        let isCorrectStatement;
+        let audioCtx;
+        let isWaiting = false; 
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1500, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'beep') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            }
+        }
+
+        function startGame() {
+            initAudio(); 
+            score = 0;
+            timeLeft = 30;
+            isWaiting = false;
+            document.getElementById('score').innerText = score;
+            document.getElementById('timer').innerText = `Time: ${timeLeft}`;
+            document.getElementById('timer').classList.remove('warning');
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('header').classList.remove('hidden');
+            document.getElementById('game-area').classList.remove('hidden');
+
+            nextQuestion();
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            if(isWaiting) return;
+            timeLeft--;
+            const timerEl = document.getElementById('timer');
+            timerEl.innerText = `Time: ${timeLeft}`;
+
+            if (timeLeft > 0 && timeLeft <= 3) {
+                timerEl.classList.add('warning');
+                playSound('beep');
+            }
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                endGame();
+            }
+        }
+
+        function endGame() {
+            document.getElementById('header').classList.add('hidden');
+            document.getElementById('game-area').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+            playSound('wrong'); 
+        }
+
+        function nextQuestion() {
+            const card = document.getElementById('card');
+            card.className = 'card-enter'; 
+
+            currentVocab = vocabList[Math.floor(Math.random() * vocabList.length)];
+            isCorrectStatement = Math.random() > 0.5;
+            
+            let displayPronoun = currentVocab.pronoun;
+            let displayWord = currentVocab.word;
+            let pronounColor = currentVocab.color; 
+
+            if (!isCorrectStatement) {
+                if (Math.random() > 0.5) {
+                    displayPronoun = currentVocab.pronoun === "He" ? "She" : "He";
+                    pronounColor = displayPronoun === "He" ? "#1976D2" : "#E91E63";
+                } else {
+                    let otherVocabs = vocabList.filter(v => v.word !== currentVocab.word);
+                    displayWord = otherVocabs[Math.floor(Math.random() * otherVocabs.length)].word;
+                }
+            }
+
+            document.getElementById('card-emoji').innerText = currentVocab.emoji;
+            document.getElementById('card-sentence').innerHTML = 
+                `<span style="color:${pronounColor}">${displayPronoun}</span> is a <span>${displayWord}</span>.`;
+        }
+
+        function checkAnswer(userChoice) {
+            if (isWaiting) return; 
+            isWaiting = true;
+
+            const card = document.getElementById('card');
+
+            if (userChoice === isCorrectStatement) {
+                playSound('correct');
+                score++;
+                document.getElementById('score').innerText = score;
+                
+                card.className = userChoice ? 'card-leave-right' : 'card-leave-left';
+                
+                setTimeout(() => {
+                    nextQuestion();
+                    isWaiting = false;
+                }, 400);
+
+            } else {
+                playSound('wrong');
+                card.classList.remove('card-enter');
+                card.classList.add('shake');
+                
+                setTimeout(() => {
+                    card.classList.remove('shake');
+                    isWaiting = false;
+                }, 400);
+            }
+        }
+    </script>
+</body>
+</html>

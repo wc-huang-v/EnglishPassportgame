@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animals Review</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            background-color: #e0f7fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #header {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 800px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #006064;
+            margin-bottom: 1rem;
+        }
+        #timer.warning { color: #d32f2f; }
+        
+        #game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        
+        #sentence-display {
+            font-size: 5rem;
+            font-weight: bold;
+            background-color: white;
+            padding: 2rem 4rem;
+            border-radius: 20px;
+            border: 5px solid #00acc1;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        #options {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .option-btn {
+            font-size: 7rem;
+            background-color: white;
+            border: 5px solid #ffca28;
+            border-radius: 30px;
+            width: 180px;
+            height: 180px;
+            cursor: pointer;
+            box-shadow: 0 10px 0 #ff8f00;
+            transition: transform 0.1s, box-shadow 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .option-btn:active {
+            transform: translateY(10px);
+            box-shadow: 0 0 0 #ff8f00;
+        }
+
+        /* 結束與開始畫面 */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .overlay h1 {
+            font-size: 5rem;
+            color: #ff4081;
+            margin: 0 0 2rem 0;
+        }
+        .overlay p {
+            font-size: 3rem;
+            color: #333;
+            margin-bottom: 2rem;
+        }
+        .btn-group { display: flex; gap: 1rem; }
+        .action-btn {
+            font-size: 2.5rem;
+            padding: 1rem 3rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            border: none;
+            color: white;
+        }
+        .start-btn { background-color: #4caf50; box-shadow: 0 8px 0 #2e7d32; }
+        .home-btn { background-color: #2196f3; box-shadow: 0 8px 0 #1565c0; }
+        .action-btn:active { transform: translateY(8px); box-shadow: 0 0 0; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- 遊戲標題與狀態區 -->
+    <div id="header" class="hidden">
+        <div>Score: <span id="score">0</span></div>
+        <div id="timer">Time: 30</div>
+    </div>
+
+    <!-- 遊戲主畫面 -->
+    <div id="game-area" class="hidden">
+        <div id="sentence-display">It is an elephant.</div>
+        <div id="options"></div>
+    </div>
+
+    <!-- 開始畫面 -->
+    <div id="start-screen" class="overlay">
+        <h1>Animals (W8~9)</h1>
+        <div class="btn-group">
+            <a href="index.html" class="action-btn home-btn">🏠 Back</a>
+            <button class="action-btn start-btn" onclick="startGame()">▶️ Start</button>
+        </div>
+    </div>
+
+    <!-- 結束畫面 -->
+    <div id="end-screen" class="overlay hidden">
+        <h1>Time's Up!</h1>
+        <p>Your Score: <span id="final-score">0</span></p>
+        <div class="btn-group">
+            <a href="index.html" class="action-btn home-btn">🏠 Home</a>
+            <button class="action-btn start-btn" onclick="startGame()">🔄 Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const vocabList = [
+            { word: "elephant", article: "an", emoji: "🐘" },
+            { word: "horse", article: "a", emoji: "🐎" },
+            { word: "bird", article: "a", emoji: "🐦" },
+            { word: "duck", article: "a", emoji: "🦆" },
+            { word: "turtle", article: "a", emoji: "🐢" },
+            { word: "fox", article: "a", emoji: "🦊" }
+        ];
+
+        let score = 0;
+        let timeLeft = 30;
+        let timerInterval;
+        let currentVocab;
+        let audioCtx;
+
+        // --- 音效系統 ---
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'beep') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            }
+        }
+
+        // --- 遊戲邏輯 ---
+        function startGame() {
+            initAudio(); // 確保使用者點擊後啟用音效
+            score = 0;
+            timeLeft = 30;
+            document.getElementById('score').innerText = score;
+            document.getElementById('timer').innerText = `Time: ${timeLeft}`;
+            document.getElementById('timer').classList.remove('warning');
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('header').classList.remove('hidden');
+            document.getElementById('game-area').classList.remove('hidden');
+
+            nextQuestion();
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            timeLeft--;
+            const timerEl = document.getElementById('timer');
+            timerEl.innerText = `Time: ${timeLeft}`;
+
+            if (timeLeft > 0 && timeLeft <= 3) {
+                timerEl.classList.add('warning');
+                playSound('beep');
+            }
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                endGame();
+            }
+        }
+
+        function endGame() {
+            document.getElementById('header').classList.add('hidden');
+            document.getElementById('game-area').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+            playSound('wrong'); // 結束音效
+        }
+
+        function nextQuestion() {
+            // 隨機選一個正確答案
+            currentVocab = vocabList[Math.floor(Math.random() * vocabList.length)];
+            
+            // 顯示句子
+            document.getElementById('sentence-display').innerHTML = `It is <span style="color:#d81b60">${currentVocab.article}</span> ${currentVocab.word}.`;
+
+            // 準備選項 (1對 + 2錯)
+            let options = [currentVocab];
+            let remaining = vocabList.filter(v => v.word !== currentVocab.word);
+            
+            // 隨機挑兩個錯誤選項
+            for(let i=0; i<2; i++) {
+                let randIndex = Math.floor(Math.random() * remaining.length);
+                options.push(remaining[randIndex]);
+                remaining.splice(randIndex, 1);
+            }
+
+            // 打亂選項順序
+            options.sort(() => Math.random() - 0.5);
+
+            // 生成按鈕
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.emoji;
+                btn.onclick = () => checkAnswer(opt.word);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedWord) {
+            if (selectedWord === currentVocab.word) {
+                playSound('correct');
+                score++;
+                document.getElementById('score').innerText = score;
+                nextQuestion();
+            } else {
+                playSound('wrong');
+            }
+        }
+    </script>
+</body>
+</html>

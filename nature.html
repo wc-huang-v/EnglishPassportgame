@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nature Review</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            /* 動態天空背景 */
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+            color: #333;
+            position: relative;
+        }
+        
+        /* 底部草地 */
+        body::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 15vh;
+            background: linear-gradient(to bottom, #8BC34A 0%, #558B2F 100%);
+            border-radius: 50% 50% 0 0 / 20px 20px 0 0;
+            z-index: -1;
+        }
+
+        #header {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 800px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1565C0;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
+            z-index: 2;
+        }
+        
+        #timer.warning { color: #d32f2f; animation: pulse 0.5s infinite alternate; }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+        
+        #game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            z-index: 2;
+        }
+
+        #sentence-display {
+            font-size: 5rem;
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 1.5rem 4rem;
+            border-radius: 50px;
+            border: 6px solid #4FC3F7;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            margin-bottom: 4rem;
+            text-align: center;
+            color: #37474F;
+        }
+
+        /* 放大鏡/泡泡 按鈕設計 */
+        #options {
+            display: flex;
+            gap: 5rem;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .option-btn {
+            font-size: 8rem;
+            width: 190px;
+            height: 190px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 8px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 15px 0 rgba(0,0,0,0.1), inset 0 0 20px rgba(255,255,255,1);
+            backdrop-filter: blur(5px);
+            transition: transform 0.1s, box-shadow 0.1s, filter 0.3s;
+            position: relative;
+        }
+
+        /* 按鈕進場動畫 */
+        .pop-in {
+            animation: popInAnim 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            transform: scale(0);
+        }
+        @keyframes popInAnim {
+            to { transform: scale(1); }
+        }
+
+        .option-btn:active {
+            transform: translateY(10px) scale(0.95) !important;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.1) !important;
+        }
+
+        /* 粒子特效的容器 */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            font-size: 2.5rem;
+            animation: flyOut 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            z-index: 100;
+        }
+
+        @keyframes flyOut {
+            0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0) rotate(var(--rot)); opacity: 0; }
+        }
+
+        /* 答錯震動 */
+        .shake { animation: shakeAnim 0.4s; border-color: #EF5350 !important; }
+        @keyframes shakeAnim {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-15px); }
+            50% { transform: translateX(15px); }
+            75% { transform: translateX(-15px); }
+        }
+
+        /* 開始與結束畫面 */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(224, 247, 250, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+        .overlay h1 { font-size: 6rem; color: #00838F; margin: 0 0 1rem 0; text-shadow: 3px 3px 0 #80DEEA; }
+        .overlay p { font-size: 2.5rem; color: #006064; margin-bottom: 3rem; text-align: center; }
+        .subtitle { font-size: 2rem; color: #4DD0E1; margin-top: -1rem; margin-bottom: 2rem; font-weight: bold; }
+        
+        .btn-group { display: flex; gap: 1.5rem; }
+        .action-btn {
+            font-size: 2.5rem;
+            padding: 1.5rem 3.5rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            border: none;
+            color: white;
+            box-shadow: 0 10px 0 rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .start-btn { background-color: #4CAF50; box-shadow: 0 10px 0 #2E7D32; }
+        .home-btn { background-color: #FFCA28; box-shadow: 0 10px 0 #FF8F00; color: #333; }
+        .action-btn:active { transform: translateY(10px); box-shadow: 0 0 0; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="header" class="hidden">
+        <div>Score: <span id="score">0</span></div>
+        <div id="timer">Time: 30</div>
+    </div>
+
+    <div id="game-area" class="hidden">
+        <div id="sentence-display"></div>
+        <div id="options"></div>
+    </div>
+
+    <div id="start-screen" class="overlay">
+        <div class="subtitle">🌲 LuChang Nature Park 🌲</div>
+        <h1>Nature (W14)</h1>
+        <p>Look carefully!<br>仔細看，點擊正確的自然景物</p>
+        <div class="btn-group">
+            <a href="index.html" class="action-btn home-btn">🏠 Back</a>
+            <button class="action-btn start-btn" onclick="startGame()">▶️ Start</button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="overlay hidden">
+        <h1>Time's Up!</h1>
+        <p>Your Score: <span id="final-score">0</span></p>
+        <div class="btn-group">
+            <a href="index.html" class="action-btn home-btn">🏠 Home</a>
+            <button class="action-btn start-btn" onclick="startGame()">🔄 Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const vocabList = [
+            { word: "sky", emoji: "☁️", color: "#29B6F6", particle: "✨" }, 
+            { word: "tree", emoji: "🌳", color: "#66BB6A", particle: "🍃" }, 
+            { word: "flower", emoji: "🌻", color: "#FFA726", particle: "🌸" }
+        ];
+
+        let score = 0;
+        let timeLeft = 30;
+        let timerInterval;
+        let currentVocab;
+        let audioCtx;
+        let isWaiting = false; 
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1500, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'beep') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            }
+        }
+
+        function startGame() {
+            initAudio(); 
+            score = 0;
+            timeLeft = 30;
+            isWaiting = false;
+            document.getElementById('score').innerText = score;
+            document.getElementById('timer').innerText = `Time: ${timeLeft}`;
+            document.getElementById('timer').classList.remove('warning');
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('header').classList.remove('hidden');
+            document.getElementById('game-area').classList.remove('hidden');
+
+            nextQuestion();
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            if(isWaiting) return; 
+            timeLeft--;
+            const timerEl = document.getElementById('timer');
+            timerEl.innerText = `Time: ${timeLeft}`;
+
+            if (timeLeft > 0 && timeLeft <= 3) {
+                timerEl.classList.add('warning');
+                playSound('beep');
+            }
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                endGame();
+            }
+        }
+
+        function endGame() {
+            document.getElementById('header').classList.add('hidden');
+            document.getElementById('game-area').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+            playSound('wrong'); 
+        }
+
+        function nextQuestion() {
+            // 單字量只有3個，所以這題的三個選項剛好就是全部單字
+            currentVocab = vocabList[Math.floor(Math.random() * vocabList.length)];
+            
+            document.getElementById('sentence-display').innerHTML = 
+                `Look at the <span style="color:${currentVocab.color}">${currentVocab.word}</span>.`;
+
+            let options = [...vocabList]; // 複製陣列
+            options.sort(() => Math.random() - 0.5);
+
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            
+            options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn pop-in'; 
+                btn.style.animationDelay = `${index * 0.1}s`; 
+                btn.innerText = opt.emoji;
+                btn.onclick = (e) => checkAnswer(e.currentTarget, opt);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        // 產生粒子噴發特效
+        function createParticles(btn, particleEmoji) {
+            const rect = btn.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // 產生 10 個小粒子
+            for (let i = 0; i < 10; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.innerText = particleEmoji;
+                p.style.left = centerX + 'px';
+                p.style.top = centerY + 'px';
+                
+                // 隨機噴發角度與距離
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 100 + Math.random() * 150;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                const rot = (Math.random() - 0.5) * 720;
+                
+                p.style.setProperty('--tx', `${tx}px`);
+                p.style.setProperty('--ty', `${ty}px`);
+                p.style.setProperty('--rot', `${rot}deg`);
+                
+                document.body.appendChild(p);
+                
+                // 動畫結束後移除 DOM
+                setTimeout(() => p.remove(), 800);
+            }
+        }
+
+        function checkAnswer(btn, selectedOpt) {
+            if (isWaiting) return; 
+
+            if (selectedOpt.word === currentVocab.word) {
+                isWaiting = true;
+                playSound('correct');
+                score++;
+                document.getElementById('score').innerText = score;
+                
+                // 觸發粒子特效
+                createParticles(btn, currentVocab.particle);
+                
+                // 隱藏其他按鈕，突顯答對的按鈕
+                Array.from(btn.parentElement.children).forEach(child => {
+                    if(child !== btn) child.style.opacity = '0';
+                });
+                
+                setTimeout(() => {
+                    nextQuestion();
+                    isWaiting = false;
+                }, 600);
+
+            } else {
+                playSound('wrong');
+                btn.classList.add('shake');
+                setTimeout(() => btn.classList.remove('shake'), 400);
+            }
+        }
+    </script>
+</body>
+</html>
